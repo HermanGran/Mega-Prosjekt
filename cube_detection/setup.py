@@ -20,6 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'cube_detector_node = cube_detection.cube_detector_node:main',
+            'pose_estimator_node = cube_detection.pose_estimator_node:main',
         ],
     },
 )
