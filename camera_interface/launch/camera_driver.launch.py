@@ -13,7 +13,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'fps',
-            default_value='5.0',
+            default_value='30.0',
             description='Antall bilder per sekund'
         ),
 
