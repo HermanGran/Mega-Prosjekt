@@ -11,7 +11,7 @@ import numpy as np
 class cubeDetector(Node):
     def __init__(self):
         super().__init__('cube_detector')
-        self.sub = self.create_subscription(Image, '/camera/image_raw', self.image_callback, 10)
+        self.sub = self.create_subscription(Image, '/image_raw', self.image_callback, 10)
         self.pub = self.create_publisher(Point, '/qube_centroid', 10)
         self.color_pub = self.create_publisher(String, '/qube_color', 10)
         self.debug_pub = self.create_publisher(Image, '/debug_image', 10)
