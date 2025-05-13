@@ -8,7 +8,7 @@ def generate_launch_description():
         # Argumenter for kamera
         DeclareLaunchArgument(
             'camera_index',
-            default_value='0',
+            default_value='2',
             description='Kameraindeks for Video'
         ),
         DeclareLaunchArgument(

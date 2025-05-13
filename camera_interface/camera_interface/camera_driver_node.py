@@ -7,9 +7,13 @@ import cv2
 class CameraDriverNode(Node):
     def __init__(self):
         super().__init__('camera_driver_node')
+        
+        self.declare_parameter('camera_index', 0)
+        camera_index = self.get_parameter('camera_index').get_parameter_value().integer_value
+        
         self.publisher = self.create_publisher(Image, 'image_raw', 10)
         self.bridge = CvBridge()
-        self.cap = cv2.VideoCapture(0) 
+        self.cap = cv2.VideoCapture(camera_index) 
         self.timer = self.create_timer(1/5.0, self.timer_callback)  # 5 FPS
 
     def timer_callback(self):
