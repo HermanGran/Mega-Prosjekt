@@ -6,8 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
-third_party
-/third_party
+Universal_Robots_ROS2_Driver
 
 # Distribution / packaging
 .Python
