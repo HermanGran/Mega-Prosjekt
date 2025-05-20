@@ -40,7 +40,7 @@ private:
     RCLCPP_INFO(this->get_logger(), "Initializing MoveGroupInterface...");
     move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
       shared_from_this(), "ur_manipulator");
-    RCLCPP_INFO(this->get_logger(), "Motion planner node is ready and listening for poses...");
+
   }
 
   void pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
@@ -48,6 +48,7 @@ private:
     if (!move_group_) {
       RCLCPP_WARN(this->get_logger(), "MoveGroupInterface not initialized yet. Ignoring pose.");
       return;
+
     }
 
     RCLCPP_INFO(this->get_logger(), "Received target pose. Planning...");
