@@ -18,7 +18,8 @@ class MotionPlannerNode : public rclcpp::Node {
             "/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, _1)
         );
 
-        ready_publisher_ = this->create_publisher<std_msgs::msg::Bool>("/planner_ready", 10);
+        ready_publisher_ = this->create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
+
         
         // Starting Movegroup, have had a lot of issues here
         RCLCPP_INFO(this->get_logger(), "Initializing MoveGroupInterface...");
@@ -60,7 +61,7 @@ class MotionPlannerNode : public rclcpp::Node {
     }
 
     void ready_callback(const std_msgs::msg::Bool msg) {
-
+        ready_publisher_->publish(msg);
     }
 
     void go_to_home_callback(
@@ -89,16 +90,23 @@ class MotionPlannerNode : public rclcpp::Node {
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         bool success = static_cast<bool>(move_group_->plan(plan));
     
-        if (success)
-        {
+
+        std_msgs::msg::Bool msg;
+
+        if (success) {
             move_group_->execute(plan);
             response->success = true;
             response->message = "Moved to home position.";
-        }
-        else
-        {
+
+            msg.data = true;
+            ready_callback(msg);
+        } else {
             response->success = false;
             response->message = "Failed to move to home.";
+
+            msg.data = false;
+            ready_callback(msg);
+
         }
     }
     
