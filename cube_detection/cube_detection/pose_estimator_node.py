@@ -45,9 +45,9 @@ class PoseEstimator(Node):
         pose_msg.pose.position.z = z_world
 
         # Sett orientering til nøytral (kan utvides senere)
-        pose_msg.pose.orientation.w = 1.0
+        pose_msg.pose.orientation.w = 0.0
         pose_msg.pose.orientation.x = 0.0
-        pose_msg.pose.orientation.y = 0.0
+        pose_msg.pose.orientation.y = -1.0
         pose_msg.pose.orientation.z = 0.0
 
         self.pose_publisher.publish(pose_msg)
