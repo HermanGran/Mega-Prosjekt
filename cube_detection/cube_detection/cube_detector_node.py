@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -15,9 +15,22 @@ class cubeDetector(Node):
         self.pub = self.create_publisher(Point, '/qube_centroid', 10)
         self.color_pub = self.create_publisher(String, '/qube_color', 10)
         self.debug_pub = self.create_publisher(Image, '/debug_image', 10)
+        self.enable_sub = self.create_subscription(Bool, '/enable_detection', self.enable_callback, 10)
+
         self.bridge = CvBridge()
+        self.enabled = False
+
+    def enable_callback(self, msg):
+        self.enabled = msg.data
+        self.get_logger().info(f"Detection enabled: {self.enabled}")
 
     def image_callback(self, image_msg):
+        if not self.enabled:
+            return  # Ikke aktivert, hopp over bildebehandling
+
+        # Kjør bare én deteksjon, deaktiver etterpå
+        self.enabled = False
+
         cv_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
         hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
 
@@ -41,13 +54,12 @@ class cubeDetector(Node):
             contours, _ = cv2.findContours(mask_total, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             for contour in contours:
-                if cv2.contourArea(contour) > 500:  # Minimum størrelse på kontur for å inkludere den
+                if cv2.contourArea(contour) > 500:
                     M = cv2.moments(contour)
                     if M["m00"] > 0:
                         cx = int(M["m10"] / M["m00"])
                         cy = int(M["m01"] / M["m00"])
 
-                        # Publiser punkt og farge
                         point_msg = Point(x=float(cx), y=float(cy), z=0.0)
                         self.pub.publish(point_msg)
 
@@ -57,13 +69,12 @@ class cubeDetector(Node):
 
                         self.get_logger().info(f"{color} cube at ({cx}, {cy})")
 
-                        # Tegn rektangel rundt objektet
                         x, y, w, h = cv2.boundingRect(contour)
                         cv2.rectangle(cv_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
                         cv2.putText(cv_image, color, (x + 10, y + 30), cv2.FONT_HERSHEY_SIMPLEX,
                                     0.6, (255, 255, 255), 2)
 
-        # Publiser bilde med tegninger
+        # Publiser bilde med merking
         debug_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
         self.debug_pub.publish(debug_msg)
 
