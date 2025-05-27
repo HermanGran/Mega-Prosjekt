@@ -3,76 +3,82 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include "std_srvs/srv/trigger.hpp"  // built-in ROS 2 service type
+#include <moveit/robot_model_loader/robot_model_loader.hpp>
+#include <moveit/robot_state/robot_state.h>
+
+
+
 
 using std::placeholders::_1;
 
 class MotionPlannerNode : public rclcpp::Node {
     public:
 
-    MotionPlannerNode() : Node("MotionPlannerNode") {
+    MotionPlannerNode() : Node("MotionPlannerNode"),
+        robot_model_loader_(std::make_shared<rclcpp::Node>(this->get_name()), "robot_description"),
+        robot_model_(robot_model_loader_.getModel()),
+        robot_state_(std::make_shared<moveit::core::RobotState>(robot_model_)),
+        planning_group_("ur_manipulator") // Change planning_group_ to match your robot
+    {   
+        joint_model_group_ = robot_model_->getJointModelGroup(planning_group_);
+     
+    
         // Starting Subscriber
         pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>(
             "/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, _1)
         );
 
+        // Starting publisher
         ready_publisher_ = this->create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
-
         
         // Starting Movegroup, have had a lot of issues here
-        RCLCPP_INFO(this->get_logger(), "Initializing MoveGroupInterface...");
+        //RCLCPP_INFO(this->get_logger(), "Initializing MoveGroupInterface...");
 
         // Found this soultion: https://robotics.stackexchange.com/questions/108030/how-to-use-movegroupinterface-within-a-node
-        move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(std::make_shared<rclcpp::Node>(this->get_name()), "ur_manipulator");
+        //move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(std::make_shared<rclcpp::Node>(this->get_name()), "ur_manipulator");
         
+        //moveit::planning_interface::MoveGroupInterface move_group_interface(std::make_shared<rclcpp::Node>(this->get_name()), planning_group_);
+
         
         go_home_service_ = this->create_service<std_srvs::srv::Trigger>(
             "/go_to_home", 
             std::bind(&MotionPlannerNode::go_to_home_callback, this, std::placeholders::_1, std::placeholders::_2));
-    
+        
 
         // Give it time to connect to move group
         rclcpp::sleep_for(std::chrono::seconds(2));
     }
 
     
-    void setup() {
-        move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(this->shared_from_this(), "ur_manipulator");
-    }
 
     private:
-    /*
-    void setup() {
-        move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(this->shared_from_this(), "ur_manipulator");
-    }
-        */
 
     void pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
         RCLCPP_INFO(this->get_logger(), "Recieved target pose. Planning...");
-        
+        moveit::planning_interface::MoveGroupInterface move_group_(std::make_shared<rclcpp::Node>(this->get_name()), planning_group_);
         //geometry_msgs::msg::Pose current_pose = move_group_->getCurrentPose().pose;
         geometry_msgs::msg::PoseStamped target_pose;
-        //target_pose.header.frame_id = "base_link";
+        target_pose.header.frame_id = "base_link";
 
-
-        target_pose.pose.position.x = home_pose.pose.position.x - msg->pose.position.x;
-        target_pose.pose.position.y = home_pose.pose.position.y - msg->pose.position.y;
+        target_pose.pose.position.x = home_pose.pose.position.x -msg->pose.position.x;
+        target_pose.pose.position.y = home_pose.pose.position.y -msg->pose.position.y;
         target_pose.pose.position.z = 0.15;
 
-        target_pose.pose.orientation.x = -0.38;
-        target_pose.pose.orientation.y = -0.92;
-        target_pose.pose.orientation.z = 0.0;
-        target_pose.pose.orientation.w = 0.0;
+        home_pose.pose.orientation.x = -0.38;
+        home_pose.pose.orientation.y = -0.92;
+        home_pose.pose.orientation.z = 0.0;
+        home_pose.pose.orientation.w = 0.0;
 
 
-        move_group_->setPoseTarget(target_pose);
+        move_group_.setPoseTarget(target_pose);
 
 
         moveit::planning_interface::MoveGroupInterface::Plan plan;
-        bool success = static_cast<bool>(move_group_->plan(plan));
+        bool success = static_cast<bool>(move_group_.plan(plan));
 
         if (success) {
             RCLCPP_INFO(this->get_logger(), "Planning succeeded. Executing...");
-            move_group_->execute(plan);
+            move_group_.execute(plan);
         } else {
             RCLCPP_ERROR(this->get_logger(), "Planning failed.");
         }
@@ -87,6 +93,7 @@ class MotionPlannerNode : public rclcpp::Node {
         const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
         std::shared_ptr<std_srvs::srv::Trigger::Response> response)
     {
+        moveit::planning_interface::MoveGroupInterface move_group_(std::make_shared<rclcpp::Node>(this->get_name()), planning_group_);
         RCLCPP_INFO(this->get_logger(), "Received request to go to home pose");
         home_pose.header.frame_id = "base_link";
 
@@ -102,16 +109,19 @@ class MotionPlannerNode : public rclcpp::Node {
         home_pose.pose.orientation.z = 0.0;
         home_pose.pose.orientation.w = 0.0;
 
-        move_group_->setPoseTarget(home_pose);
+        
+
+        move_group_.setPoseTarget(home_pose);
+    
     
         moveit::planning_interface::MoveGroupInterface::Plan plan;
-        bool success = static_cast<bool>(move_group_->plan(plan));
+        bool success = static_cast<bool>(move_group_.plan(plan));
     
 
         std_msgs::msg::Bool msg;
 
         if (success) {
-            move_group_->execute(plan);
+            move_group_.execute(plan);
             response->success = true;
             response->message = "Moved to home position.";
 
@@ -125,11 +135,14 @@ class MotionPlannerNode : public rclcpp::Node {
             ready_callback(msg);
 
         }
+
+
+        
     }
     
 
     // Variables
-    std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
+    //std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_subscriber;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -138,13 +151,21 @@ class MotionPlannerNode : public rclcpp::Node {
 
     // Service
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr go_home_service_;
+
+    // Fra nettet:
+    robot_model_loader::RobotModelLoader robot_model_loader_;
+    moveit::core::RobotModelPtr robot_model_;
+    moveit::core::RobotStatePtr robot_state_;
+    std::string planning_group_;
+    const moveit::core::JointModelGroup* joint_model_group_;
 };
+
+
 
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<MotionPlannerNode>();
-    node->setup();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

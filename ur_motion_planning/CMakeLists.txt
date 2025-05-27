@@ -12,6 +12,7 @@ find_package(moveit_ros_planning_interface REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
+#find_package(robot_model_loader REQUIRED)
 
 
 if(BUILD_TESTING)
@@ -28,13 +29,12 @@ endif()
 
 ament_package()
 
-add_executable(ur_motion_planning_node src/ur_motion_planning_node.cpp)
+
 add_executable(motion_planning_node src/motion_planning_node.cpp)
-ament_target_dependencies(ur_motion_planning_node rclcpp moveit_ros_planning_interface geometry_msgs std_msgs)
+
 ament_target_dependencies(motion_planning_node rclcpp moveit_ros_planning_interface geometry_msgs std_msgs std_srvs)
 
 install(TARGETS
-  ur_motion_planning_node
   motion_planning_node
   DESTINATION lib/${PROJECT_NAME}
 )
