@@ -2,8 +2,14 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+import os
 
 def generate_launch_description():
+    config_path = os.path.join(
+        os.getenv('HOME'), 'mega_ws/src/ur_motion_planning/config/poses.yaml'
+    )
+
+
     return LaunchDescription([
         # Argumenter for kamera
         DeclareLaunchArgument(
@@ -67,6 +73,7 @@ def generate_launch_description():
             package='ur_motion_planning',
             executable='planner_node',
             name='planner_node',
-            output='screen'
+            output='screen',
+            parameters=[config_path]
         )#,
     ])

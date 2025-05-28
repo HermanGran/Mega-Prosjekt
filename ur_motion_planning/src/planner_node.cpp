@@ -4,6 +4,7 @@
 #include <std_msgs/msg/bool.hpp>
 #include "std_srvs/srv/trigger.hpp"
 #include <moveit/robot_model_loader/robot_model_loader.hpp>
+#include <std_msgs/msg/string.hpp>
 
 class MotionPlannerNode : public rclcpp::Node {
 public:
@@ -43,21 +44,17 @@ public:
         home_pose_.pose.orientation.w = 0.0;
         */
 
-        // Subscriber
+        // Creating Subsribers
         pose_subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
             "/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
 
-        // Publisher
+        // Creating Publishers
         ready_publisher_ = create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
-
         cube_pose_translated = create_publisher<geometry_msgs::msg::PoseStamped>("/cube_pose_translated", 10);
 
-        // Service
-        go_home_service_ = create_service<std_srvs::srv::Trigger>(
-            "/go_to_home", 
-            std::bind(&MotionPlannerNode::go_to_home_callback, this, 
-                     std::placeholders::_1, std::placeholders::_2));
-
+        // Creating Service
+        go_home_service_ = create_service<std_srvs::srv::Trigger>("/go_to_home", std::bind(&MotionPlannerNode::go_to_home_callback, this, std::placeholders::_1, std::placeholders::_2));
+        
         RCLCPP_INFO(get_logger(), "Motion planner initialized successfully");
     }
 
@@ -137,15 +134,12 @@ private:
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    
-    // Configure MoveIt to use the current node
     auto node = std::make_shared<MotionPlannerNode>();
     
-    // Use multi-threaded executor
+    // Use multi-threaded executor that I got from DeepSeek
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     executor.spin();
-    
     rclcpp::shutdown();
     return 0;
 }
