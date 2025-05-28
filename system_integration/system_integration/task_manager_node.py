@@ -25,6 +25,8 @@ class TaskManagerNode(Node):
         self.last_color = None
         self.last_pose = None
         self.waiting_for_pose = False
+        self.has_received_color = False
+        self.has_received_pose = False
 
         # Abonnementer
         self.create_subscription(String, '/qube_color', self.color_callback, 10)
@@ -51,16 +53,17 @@ class TaskManagerNode(Node):
 
     def color_callback(self, msg):
         self.last_color = msg.data.lower()
+        self.has_received_color = True
 
     def pose_callback(self, msg):
         self.last_pose = msg
+        self.has_received_pose = True
 
     def timer_callback(self):
-        # Ferdig med alle farger?
-        if self.current_target_index >= len(self.target_colors):
-            self.get_logger().info('Alle kuber er håndtert. Klar.')
+        # Sjekk at vi har fått data fra kamera og deteksjon
+        if not self.has_received_color or not self.has_received_pose:
+            self.get_logger().info_once("Venter på første farge og pose fra kamera...")
             return
-
         # Vent til home-bevegelsen er ferdig
         if not self.waiting_for_pose:
             return
