@@ -1,0 +1,116 @@
+#include <rclcpp/rclcpp.hpp>
+#include <moveit/move_group_interface/move_group_interface.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <std_msgs/msg/bool.hpp>
+#include "std_srvs/srv/trigger.hpp"
+#include <moveit/robot_model_loader/robot_model_loader.hpp>
+
+class MotionPlannerNode : public rclcpp::Node {
+public:
+    MotionPlannerNode() : Node("motion_planner_node"),
+        move_group_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator")
+    {
+        // Initialize home pose
+        home_pose_.header.frame_id = "base_link";
+        home_pose_.pose.position.x = -0.25;
+        home_pose_.pose.position.y = 0.45;
+        home_pose_.pose.position.z = 0.66;
+
+        // Orientation: TCP pointing down (180° about X-axis)
+        home_pose_.pose.orientation.x = -0.38;
+        home_pose_.pose.orientation.y = -0.92;
+        home_pose_.pose.orientation.z = 0.0;
+        home_pose_.pose.orientation.w = 0.0;
+
+        // Subscriber
+        pose_subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
+            "/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
+
+        // Publisher
+        ready_publisher_ = create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
+
+        // Service
+        go_home_service_ = create_service<std_srvs::srv::Trigger>(
+            "/go_to_home", 
+            std::bind(&MotionPlannerNode::go_to_home_callback, this, 
+                     std::placeholders::_1, std::placeholders::_2));
+
+        RCLCPP_INFO(get_logger(), "Motion planner initialized successfully");
+    }
+
+private:
+    void pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+        RCLCPP_INFO(get_logger(), "Planning to target pose...");
+        
+        geometry_msgs::msg::PoseStamped target_pose = *msg;
+        target_pose.header.frame_id = "base_link";
+        target_pose.pose.position.z = 0.15;  // Fixed height above table
+        target_pose.pose.orientation = home_pose_.pose.orientation;
+
+        move_group_.setPoseTarget(target_pose);
+
+        auto const [success, plan] = [this]{
+            moveit::planning_interface::MoveGroupInterface::Plan msg;
+            auto const ok = static_cast<bool>(move_group_.plan(msg));
+            return std::make_pair(ok, msg);
+        }();
+
+        if (success) {
+            RCLCPP_INFO(get_logger(), "Executing plan...");
+            move_group_.execute(plan);
+        } else {
+            RCLCPP_ERROR(get_logger(), "Planning failed!");
+        }
+    }
+
+    void go_to_home_callback(
+        const std::shared_ptr<std_srvs::srv::Trigger::Request>,
+        std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+    {
+        RCLCPP_INFO(get_logger(), "Moving to home position...");
+        
+        move_group_.setPoseTarget(home_pose_);
+        
+        auto const [success, plan] = [this]{
+            moveit::planning_interface::MoveGroupInterface::Plan msg;
+            auto const ok = static_cast<bool>(move_group_.plan(msg));
+            return std::make_pair(ok, msg);
+        }();
+
+        std_msgs::msg::Bool ready_msg;
+        ready_msg.data = success;
+        ready_publisher_->publish(ready_msg);
+
+        if (success) {
+            move_group_.execute(plan);
+            response->success = true;
+            response->message = "Moved to home position.";
+        } else {
+            response->success = false;
+            response->message = "Failed to move to home.";
+        }
+    }
+
+    // Member variables
+    moveit::planning_interface::MoveGroupInterface move_group_;
+    geometry_msgs::msg::PoseStamped home_pose_;
+    
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_subscriber_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_publisher_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr go_home_service_;
+};
+
+int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
+    
+    // Configure MoveIt to use the current node
+    auto node = std::make_shared<MotionPlannerNode>();
+    
+    // Use multi-threaded executor
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    executor.spin();
+    
+    rclcpp::shutdown();
+    return 0;
+}

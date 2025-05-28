@@ -31,11 +31,14 @@ ament_package()
 
 
 add_executable(motion_planning_node src/motion_planning_node.cpp)
+add_executable(test_node src/new_test_node.cpp)
 
 ament_target_dependencies(motion_planning_node rclcpp moveit_ros_planning_interface geometry_msgs std_msgs std_srvs)
+ament_target_dependencies(test_node rclcpp moveit_ros_planning_interface geometry_msgs std_msgs std_srvs)
 
 install(TARGETS
   motion_planning_node
+  test_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
