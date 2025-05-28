@@ -31,7 +31,7 @@ ament_package()
 
 
 add_executable(motion_planning_node src/motion_planning_node.cpp)
-add_executable(planner_node src/new_test_node.cpp)
+add_executable(planner_node src/planner_node.cpp)
 
 ament_target_dependencies(motion_planning_node rclcpp moveit_ros_planning_interface geometry_msgs std_msgs std_srvs)
 ament_target_dependencies(planner_node rclcpp moveit_ros_planning_interface geometry_msgs std_msgs std_srvs)
