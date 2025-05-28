@@ -15,7 +15,7 @@ class PoseEstimator(Node):
 
         # Parametere du kan justere:
         self.camera_height = 0.5  # meter over bakken
-        self.scale = 0.002  # meter per piksel (må kalibreres!)
+        self.scale = 0.036/37  # Kjør pixel_size_detector og oppdater nevner til antall pixler og teller til størrelse på klossen i m
         self.img_width = 640
         self.img_height = 480
 
@@ -43,12 +43,6 @@ class PoseEstimator(Node):
         pose_msg.pose.position.x = x_world
         pose_msg.pose.position.y = y_world
         pose_msg.pose.position.z = z_world
-
-        # Sett orientering til nøytral (kan utvides senere)
-        pose_msg.pose.orientation.w = 0.0
-        pose_msg.pose.orientation.x = 0.0
-        pose_msg.pose.orientation.y = -1.0
-        pose_msg.pose.orientation.z = 0.0
 
         self.pose_publisher.publish(pose_msg)
 

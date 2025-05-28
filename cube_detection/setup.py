@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'cube_detector_node = cube_detection.cube_detector_node:main',
             'pose_estimator_node = cube_detection.pose_estimator_node:main',
+            'pixel_size_detector = cube_detection.pixel_size_detector:main',
         ],
     },
 )
