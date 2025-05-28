@@ -62,7 +62,7 @@ class TaskManagerNode(Node):
     def timer_callback(self):
         # Sjekk at vi har fått data fra kamera og deteksjon
         if not self.has_received_color or not self.has_received_pose:
-            self.get_logger().info_once("Venter på første farge og pose fra kamera...")
+            self.get_logger().info("Venter på første farge og pose fra kamera...")
             return
         # Vent til home-bevegelsen er ferdig
         if not self.waiting_for_pose:
