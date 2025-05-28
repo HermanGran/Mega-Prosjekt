@@ -33,8 +33,8 @@ class TaskManagerNode(Node):
         self.create_subscription(String, '/qube_color', self.color_callback, 10)
         self.create_subscription(PoseStamped, '/cube_pose', self.pose_callback, 10)
 
-        # Publisher for å manuelt sende posen videre
-        self.pose_pub = self.create_publisher(PoseStamped, '/cube_pose', 10)
+        # Publisher for å sende sortert pose
+        self.pose_order_pub = self.create_publisher(PoseStamped, '/cube_pose_order', 10)
 
         # Sjekker jevnlig om vi kan sende neste pose
         self.timer = self.create_timer(1.0, self.timer_callback)
@@ -53,10 +53,12 @@ class TaskManagerNode(Node):
         future.add_done_callback(callback)
 
     def color_callback(self, msg):
+        self.get_logger().info(f"Mottatt farge: {msg.data}")
         self.last_color = msg.data.lower()
         self.has_received_color = True
 
     def pose_callback(self, msg):
+        self.get_logger().info(f"Mottatt pose: {msg.pose}")
         self.last_pose = msg
         self.has_received_pose = True
 
@@ -77,28 +79,25 @@ class TaskManagerNode(Node):
         current_target_color = self.target_colors[self.current_target_index]
 
         if self.last_color == current_target_color and self.last_pose is not None:
-            self.get_logger().info(f'Fant {current_target_color}-kube. Sender pose.')
-            self.pose_pub.publish(self.last_pose)
+            self.get_logger().info(f'Fant {current_target_color}-kube. Publiserer til /cube_pose_order.')
+            self.pose_order_pub.publish(self.last_pose)
 
             self.current_target_index += 1
             self.last_pose = None
+            self.has_received_color = False
+            self.has_received_pose = False
             self.waiting_for_pose = False
 
-            # Start en timer for å kalle go_to_home etter 5 sekunder
             self.get_logger().info("Starter 5 sek forsinkelse før retur til home...")
-            self.delayed_home_timer = self.create_timer(
-                5.0, self.delayed_go_to_home
-            )
+            self.delayed_home_timer = self.create_timer(5.0, self.delayed_go_to_home)
 
     def delayed_go_to_home(self):
-        # Stopp denne timeren først
         if self.delayed_home_timer:
             self.delayed_home_timer.cancel()
             self.delayed_home_timer = None
 
         self.get_logger().info("Kaller go_to_home etter forsinkelse...")
         self.go_to_home()
-
 
 def main(args=None):
     rclpy.init(args=args)
