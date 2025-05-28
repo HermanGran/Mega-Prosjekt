@@ -8,10 +8,30 @@
 class MotionPlannerNode : public rclcpp::Node {
 public:
     MotionPlannerNode() : Node("motion_planner_node"),
-        move_group_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator")
+        move_group_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator") 
     {
-        // Initialize home pose
+
+        // Declaring parameters
+        this->declare_parameter("home_pose.position.x", 0.0);
+        this->declare_parameter("home_pose.position.y", 0.0);
+        this->declare_parameter("home_pose.position.z", 0.0);
+        this->declare_parameter("home_pose.orientation.x", 0.0);
+        this->declare_parameter("home_pose.orientation.y", 0.0);
+        this->declare_parameter("home_pose.orientation.z", 0.0);
+        this->declare_parameter("home_pose.orientation.w", 1.0);
+
+        // Creating Home Pose
         home_pose_.header.frame_id = "base_link";
+        home_pose_.pose.position.x = this->get_parameter("home_pose.position.x").as_double();
+        home_pose_.pose.position.y = this->get_parameter("home_pose.position.y").as_double();
+        home_pose_.pose.position.z = this->get_parameter("home_pose.position.z").as_double();
+        home_pose_.pose.orientation.x = this->get_parameter("home_pose.orientation.x").as_double();
+        home_pose_.pose.orientation.y = this->get_parameter("home_pose.orientation.y").as_double();
+        home_pose_.pose.orientation.z = this->get_parameter("home_pose.orientation.z").as_double();
+        home_pose_.pose.orientation.w = this->get_parameter("home_pose.orientation.w").as_double();
+
+        /*
+        // Initialize home pose
         home_pose_.pose.position.x = -0.25;
         home_pose_.pose.position.y = 0.45;
         home_pose_.pose.position.z = 0.66;
@@ -21,6 +41,7 @@ public:
         home_pose_.pose.orientation.y = -0.92;
         home_pose_.pose.orientation.z = 0.0;
         home_pose_.pose.orientation.w = 0.0;
+        */
 
         // Subscriber
         pose_subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
@@ -71,10 +92,9 @@ private:
         }
     }
 
-    void go_to_home_callback(
-        const std::shared_ptr<std_srvs::srv::Trigger::Request>,
-        std::shared_ptr<std_srvs::srv::Trigger::Response> response)
-    {
+    // Service function to go to home pose, then send boolean ready to take picture
+    void go_to_home_callback(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
+
         RCLCPP_INFO(get_logger(), "Moving to home position...");
         
         move_group_.setPoseTarget(home_pose_);
