@@ -33,8 +33,12 @@ class TaskManagerNode(Node):
         self.create_subscription(String, '/qube_color', self.color_callback, 10)
         self.create_subscription(PoseStamped, '/cube_pose', self.pose_callback, 10)
 
-        # Publisher for å sende sortert pose
+        # Publisher for å manuelt sende posen videre
         self.pose_order_pub = self.create_publisher(PoseStamped, '/cube_pose_order', 10)
+
+        self.create_service(Trigger, '/cube_pose_done', self.task_done_callback)
+
+        #self.pose_pub = self.create_publisher(PoseStamped, '/cube_pose', 10)
 
         # Sjekker jevnlig om vi kan sende neste pose
         self.timer = self.create_timer(1.0, self.timer_callback)
@@ -84,20 +88,30 @@ class TaskManagerNode(Node):
 
             self.current_target_index += 1
             self.last_pose = None
+            self.waiting_for_pose = False
             self.has_received_color = False
             self.has_received_pose = False
-            self.waiting_for_pose = False
 
             self.get_logger().info("Starter 5 sek forsinkelse før retur til home...")
-            self.delayed_home_timer = self.create_timer(5.0, self.delayed_go_to_home)
+            #self.delayed_home_timer = self.create_timer(5.0, self.delayed_go_to_home)
 
-    def delayed_go_to_home(self):
-        if self.delayed_home_timer:
-            self.delayed_home_timer.cancel()
-            self.delayed_home_timer = None
+#    def delayed_go_to_home(self):
+        # Stopp denne timeren først
+ #       if self.delayed_home_timer:
+  #          self.delayed_home_timer.cancel()
+   #         self.delayed_home_timer = None
 
-        self.get_logger().info("Kaller go_to_home etter forsinkelse...")
-        self.go_to_home()
+        #self.get_logger().info("Kaller go_to_home etter forsinkelse...")
+        #self.go_to_home()
+
+    def task_done_callback(self, request, response):
+        self.get_logger().info("Robot rapporterte at kube er håndtert. Kaller go_to_home og gjør klar for neste.")
+
+        self.go_to_home()  # Flytt hit
+        response.success = True
+        response.message = "Neste kube kan hentes"
+        return response
+
 
 def main(args=None):
     rclpy.init(args=args)
