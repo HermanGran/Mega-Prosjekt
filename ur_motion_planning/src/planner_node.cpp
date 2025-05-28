@@ -30,20 +30,7 @@ public:
         home_pose_.pose.orientation.y = this->get_parameter("home_pose.orientation.y").as_double();
         home_pose_.pose.orientation.z = this->get_parameter("home_pose.orientation.z").as_double();
         home_pose_.pose.orientation.w = this->get_parameter("home_pose.orientation.w").as_double();
-
-        /*
-        // Initialize home pose
-        home_pose_.pose.position.x = -0.25;
-        home_pose_.pose.position.y = 0.45;
-        home_pose_.pose.position.z = 0.66;
-
-        // Orientation: TCP pointing down (180° about X-axis)
-        home_pose_.pose.orientation.x = -0.38;
-        home_pose_.pose.orientation.y = -0.92;
-        home_pose_.pose.orientation.z = 0.0;
-        home_pose_.pose.orientation.w = 0.0;
-        */
-
+        
         // Creating Subsribers
         pose_subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
             "/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
