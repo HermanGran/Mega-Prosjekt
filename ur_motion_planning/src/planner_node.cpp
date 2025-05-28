@@ -11,7 +11,6 @@ public:
     MotionPlannerNode() : Node("motion_planner_node"),
         move_group_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator") 
     {
-
         // Declaring parameters
         this->declare_parameter("home_pose.position.x", 0.0);
         this->declare_parameter("home_pose.position.y", 0.0);
@@ -37,7 +36,8 @@ public:
 
         // Creating Publishers
         ready_publisher_ = create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
-        cube_pose_translated = create_publisher<geometry_msgs::msg::PoseStamped>("/cube_pose_translated", 10);
+        cube_pose_translated_ = create_publisher<geometry_msgs::msg::PoseStamped>("/cube_pose_translated", 10);
+        cube_pose_done_ = create_publisher<std_msgs::msg::Bool>("/cube_pose_done", 10);
 
         // Creating Service
         go_home_service_ = create_service<std_srvs::srv::Trigger>("/go_to_home", std::bind(&MotionPlannerNode::go_to_home_callback, this, std::placeholders::_1, std::placeholders::_2));
@@ -66,14 +66,23 @@ private:
 
         geometry_msgs::msg::PoseStamped cube_pose_pub;
         cube_pose_pub = target_pose;
-        cube_pose_translated->publish(cube_pose_pub);
+        cube_pose_translated_->publish(cube_pose_pub);
+
+        std_msgs::msg::Bool done_msg;
+        done_msg.data = false;
 
         if (success) {
             RCLCPP_INFO(get_logger(), "Executing plan...");
-            move_group_.execute(plan);
+            moveit::core::MoveItErrorCode result = move_group_.execute(plan);
+            if (result == moveit::core::MoveItErrorCode::SUCCESS) {
+                done_msg.data = true;
+                RCLCPP_INFO(get_logger(), "Moved to cobe!");
+            }
+
         } else {
             RCLCPP_ERROR(get_logger(), "Planning failed!");
         }
+        cube_pose_done_->publish(done_msg);
     }
 
     // Service function to go to home pose, then send boolean ready to take picture
@@ -121,7 +130,8 @@ private:
     
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_subscriber_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_publisher_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_pose_translated;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr cube_pose_done_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_pose_translated_;;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr go_home_service_;
 };
 
