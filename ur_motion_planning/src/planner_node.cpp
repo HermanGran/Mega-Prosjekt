@@ -29,6 +29,8 @@ public:
         // Publisher
         ready_publisher_ = create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
 
+        cube_pose_translated = create_publisher<geometry_msgs::msg::PoseStamped>("/cube_pose_translated", 10);
+
         // Service
         go_home_service_ = create_service<std_srvs::srv::Trigger>(
             "/go_to_home", 
@@ -44,7 +46,9 @@ private:
         
         geometry_msgs::msg::PoseStamped target_pose = *msg;
         target_pose.header.frame_id = "base_link";
-        target_pose.pose.position.z = 0.15;  // Fixed height above table
+        target_pose.pose.position.x = home_pose_.pose.position.x - msg->pose.position.x;
+        target_pose.pose.position.y = home_pose_.pose.position.y - msg->pose.position.y;
+        target_pose.pose.position.z = 0.15;
         target_pose.pose.orientation = home_pose_.pose.orientation;
 
         move_group_.setPoseTarget(target_pose);
@@ -54,6 +58,10 @@ private:
             auto const ok = static_cast<bool>(move_group_.plan(msg));
             return std::make_pair(ok, msg);
         }();
+
+        geometry_msgs::msg::PoseStamped cube_pose_pub;
+        cube_pose_pub = target_pose;
+        cube_pose_translated->publish(cube_pose_pub);
 
         if (success) {
             RCLCPP_INFO(get_logger(), "Executing plan...");
@@ -76,19 +84,25 @@ private:
             auto const ok = static_cast<bool>(move_group_.plan(msg));
             return std::make_pair(ok, msg);
         }();
-
+    
         std_msgs::msg::Bool ready_msg;
-        ready_msg.data = success;
-        ready_publisher_->publish(ready_msg);
-
+        ready_msg.data = false;  // Default to "not ready"
+    
         if (success) {
-            move_group_.execute(plan);
-            response->success = true;
-            response->message = "Moved to home position.";
+            moveit::core::MoveItErrorCode result = move_group_.execute(plan);
+            if (result == moveit::core::MoveItErrorCode::SUCCESS) {
+                response->success = true;
+                response->message = "Moved to home position.";
+                ready_msg.data = true;  // Only set true after successful execution
+            } else {
+                response->success = false;
+                response->message = "Execution failed.";
+            }
         } else {
             response->success = false;
-            response->message = "Failed to move to home.";
+            response->message = "Planning failed.";
         }
+        ready_publisher_->publish(ready_msg);  // Publish final state
     }
 
     // Member variables
@@ -97,6 +111,7 @@ private:
     
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_subscriber_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_pose_translated;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr go_home_service_;
 };
 
