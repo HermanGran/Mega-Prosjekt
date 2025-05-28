@@ -16,15 +16,9 @@ class cubeDetector(Node):
         self.color_pub = self.create_publisher(String, '/qube_color', 10)
         self.debug_pub = self.create_publisher(Image, '/debug_image', 10)
         self.enable_sub = self.create_subscription(Bool, '/enable_detection', self.enable_callback, 10)
-        self.target_color = None
-        self.color_filter_sub = self.create_subscription(String, '/target_color', self.set_target_color, 10)
 
         self.bridge = CvBridge()
         self.enabled = False
-
-    def set_target_color(self, msg):
-        self.target_color = msg.data
-        self.get_logger().info(f"Target color set to: {self.target_color}")
 
     def enable_callback(self, msg):
         self.enabled = msg.data
@@ -34,7 +28,7 @@ class cubeDetector(Node):
         if not self.enabled:
             return  # Ikke aktivert, hopp over bildebehandling
 
-        # Kjør bare en deteksjon, deaktiver etterpå
+        # Kjør bare én deteksjon, deaktiver etterpå
         self.enabled = False
 
         cv_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
@@ -52,9 +46,6 @@ class cubeDetector(Node):
         }
 
         for color, ranges in color_ranges.items():
-            if color != self.target_color:
-                continue
-
             mask_total = None
             for lower, upper in ranges:
                 mask = cv2.inRange(hsv, lower, upper)
