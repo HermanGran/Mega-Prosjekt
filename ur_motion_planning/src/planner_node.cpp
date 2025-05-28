@@ -30,10 +30,10 @@ public:
         home_pose_.pose.orientation.y = this->get_parameter("home_pose.orientation.y").as_double();
         home_pose_.pose.orientation.z = this->get_parameter("home_pose.orientation.z").as_double();
         home_pose_.pose.orientation.w = this->get_parameter("home_pose.orientation.w").as_double();
-        
+
         // Creating Subsribers
         pose_subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-            "/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
+            "/cube_pose_order", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
 
         // Creating Publishers
         ready_publisher_ = create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
@@ -81,30 +81,36 @@ private:
 
         RCLCPP_INFO(get_logger(), "Moving to home position...");
         
-        move_group_.setPoseTarget(home_pose_);
-        
-        auto const [success, plan] = [this]{
-            moveit::planning_interface::MoveGroupInterface::Plan msg;
-            auto const ok = static_cast<bool>(move_group_.plan(msg));
-            return std::make_pair(ok, msg);
-        }();
-    
         std_msgs::msg::Bool ready_msg;
         ready_msg.data = false;  // Default to "not ready"
-    
-        if (success) {
-            moveit::core::MoveItErrorCode result = move_group_.execute(plan);
-            if (result == moveit::core::MoveItErrorCode::SUCCESS) {
-                response->success = true;
-                response->message = "Moved to home position.";
-                ready_msg.data = true;  // Only set true after successful execution
+
+        if (move_group_.getCurrentPose().pose == home_pose_.pose) {
+            response->success = true;
+            response->message = "Moved to home position.";
+            ready_msg.data = true;  // Only set true after successful execution
+        } else {
+            move_group_.setPoseTarget(home_pose_);
+            
+            auto const [success, plan] = [this]{
+                moveit::planning_interface::MoveGroupInterface::Plan msg;
+                auto const ok = static_cast<bool>(move_group_.plan(msg));
+                return std::make_pair(ok, msg);
+            }();
+        
+            if (success) {
+                moveit::core::MoveItErrorCode result = move_group_.execute(plan);
+                if (result == moveit::core::MoveItErrorCode::SUCCESS) {
+                    response->success = true;
+                    response->message = "Moved to home position.";
+                    ready_msg.data = true;  // Only set true after successful execution
+                } else {
+                    response->success = false;
+                    response->message = "Execution failed.";
+                }
             } else {
                 response->success = false;
-                response->message = "Execution failed.";
+                response->message = "Planning failed.";
             }
-        } else {
-            response->success = false;
-            response->message = "Planning failed.";
         }
         ready_publisher_->publish(ready_msg);  // Publish final state
     }
