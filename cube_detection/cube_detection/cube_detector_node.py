@@ -34,7 +34,7 @@ class cubeDetector(Node):
         if not self.enabled:
             return  # Ikke aktivert, hopp over bildebehandling
 
-        # Kjør bare én deteksjon, deaktiver etterpå
+        # Kjør bare en deteksjon, deaktiver etterpå
         self.enabled = False
 
         cv_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
@@ -50,8 +50,6 @@ class cubeDetector(Node):
             'blue': [(np.array([100, 150, 50]), np.array([140, 255, 255]))],
             'yellow': [(np.array([20, 100, 100]), np.array([40, 255, 255]))]
         }
-
-        found_cube = False  # Nytt flagg
 
         for color, ranges in color_ranges.items():
             if color != self.target_color:
@@ -84,11 +82,6 @@ class cubeDetector(Node):
                         cv2.rectangle(cv_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
                         cv2.putText(cv_image, color, (x + 10, y + 30), cv2.FONT_HERSHEY_SIMPLEX,
                                     0.6, (255, 255, 255), 2)
-
-                        found_cube = True  # Vi fant en kube
-
-        if not found_cube:
-            self.get_logger().warn(f"No {self.target_color} cube found in image.")
 
         # Publiser bilde med merking
         debug_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
