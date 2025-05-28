@@ -56,8 +56,8 @@ def generate_launch_description():
         # Start motion_planner_node
         Node(
             package='ur_motion_planning',
-            executable='motion_planner_node',
-            name='motion_planner_node',
+            executable='test_node',
+            name='test_node',
             output='screen'
         )#,
     ])
