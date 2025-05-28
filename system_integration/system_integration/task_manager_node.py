@@ -25,6 +25,9 @@ class TaskManagerNode(Node):
         self.last_color = None
         self.last_pose = None
         self.waiting_for_pose = False
+        self.has_received_color = False
+        self.has_received_pose = False
+        self.delayed_home_timer = None
 
         # Abonnementer
         self.create_subscription(String, '/qube_color', self.color_callback, 10)
@@ -51,18 +54,24 @@ class TaskManagerNode(Node):
 
     def color_callback(self, msg):
         self.last_color = msg.data.lower()
+        self.has_received_color = True
 
     def pose_callback(self, msg):
         self.last_pose = msg
+        self.has_received_pose = True
 
     def timer_callback(self):
-        # Ferdig med alle farger?
-        if self.current_target_index >= len(self.target_colors):
-            self.get_logger().info('Alle kuber er håndtert. Klar.')
+        if not self.has_received_color or not self.has_received_pose:
+            if not hasattr(self, 'has_logged_waiting') or not self.has_logged_waiting:
+                self.get_logger().info("Venter på første farge og pose fra kamera...")
+                self.has_logged_waiting = True
             return
 
-        # Vent til home-bevegelsen er ferdig
         if not self.waiting_for_pose:
+            return
+
+        if self.current_target_index >= len(self.target_colors):
+            self.get_logger().info("Alle kuber håndtert.")
             return
 
         current_target_color = self.target_colors[self.current_target_index]
@@ -75,10 +84,21 @@ class TaskManagerNode(Node):
             self.last_pose = None
             self.waiting_for_pose = False
 
-            # Gå tilbake til home etter hvert grep (simulert ventetid)
-            self.get_logger().info(f'Venter 2 sek før retur til home...')
-            time.sleep(2)
-            self.go_to_home()
+            # Start en timer for å kalle go_to_home etter 5 sekunder
+            self.get_logger().info("Starter 5 sek forsinkelse før retur til home...")
+            self.delayed_home_timer = self.create_timer(
+                5.0, self.delayed_go_to_home
+            )
+
+    def delayed_go_to_home(self):
+        # Stopp denne timeren først
+        if self.delayed_home_timer:
+            self.delayed_home_timer.cancel()
+            self.delayed_home_timer = None
+
+        self.get_logger().info("Kaller go_to_home etter forsinkelse...")
+        self.go_to_home()
+
 
 def main(args=None):
     rclpy.init(args=args)

@@ -3,12 +3,34 @@ from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 import os
+from launch.actions import TimerAction
 
 def generate_launch_description():
     config_path = os.path.join(
         os.getenv('HOME'), 'mega_ws/src/ur_motion_planning/config/poses.yaml'
     )
+    camera_node = Node(
+        package='camera_interface',
+        executable='camera_driver_node',
+        name='camera_driver_node',
+        output='screen',
+        parameters=[{
+            'camera_index': LaunchConfiguration('camera_index'),
+            'fps': LaunchConfiguration('fps')
+        }]
+    )
 
+    task_manager_node_delayed = TimerAction(
+        period=5.0,  # Vent 5 sekunder før task_manager starter
+        actions=[
+            Node(
+                package='system_integration',
+                executable='task_manager_node',
+                name='task_manager',
+                output='screen'
+            )
+        ]
+    )
 
     return LaunchDescription([
         # Argumenter for kamera
