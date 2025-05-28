@@ -50,10 +50,12 @@ class PoseEstimator(Node):
             transformed_pose = self.tf_buffer.transform(pose_cam, "base_link", timeout=rclpy.duration.Duration(seconds=0.5))
 
             self.pose_publisher.publish(transformed_pose)
+            '''
             self.get_logger().info(
                 f"Published transformed pose for {self.last_color} cube: x={transformed_pose.pose.position.x:.2f}, "
                 f"y={transformed_pose.pose.position.y:.2f}, z={transformed_pose.pose.position.z:.2f}"
             )
+            '''
         except (LookupException, ConnectivityException, ExtrapolationException) as e:
             self.get_logger().warn(f"TF transform failed: {e}")
 

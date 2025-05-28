@@ -67,7 +67,7 @@ class cubeDetector(Node):
                         color_msg.data = color
                         self.color_pub.publish(color_msg)
 
-                        self.get_logger().info(f"{color} cube at ({cx}, {cy})")
+                        #self.get_logger().info(f"{color} cube at ({cx}, {cy})")
 
                         x, y, w, h = cv2.boundingRect(contour)
                         cv2.rectangle(cv_image, (x, y), (x + w, y + h), (0, 255, 0), 2)

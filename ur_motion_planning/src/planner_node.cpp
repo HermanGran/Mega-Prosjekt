@@ -131,7 +131,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_subscriber_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_publisher_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr cube_pose_done_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_pose_translated_;;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_pose_translated_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr go_home_service_;
 };
 

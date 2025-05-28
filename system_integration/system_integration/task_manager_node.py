@@ -62,14 +62,14 @@ class TaskManagerNode(Node):
         self.has_received_color = True
 
     def pose_callback(self, msg):
-        self.get_logger().info(f"Mottatt pose: {msg.pose}")
+        #self.get_logger().info(f"Mottatt pose: {msg.pose}")
         self.last_pose = msg
         self.has_received_pose = True
 
     def timer_callback(self):
         if not self.has_received_color or not self.has_received_pose:
             if not hasattr(self, 'has_logged_waiting') or not self.has_logged_waiting:
-                self.get_logger().info("Venter på første farge og pose fra kamera...")
+                #self.get_logger().info("Venter på første farge og pose fra kamera...")
                 self.has_logged_waiting = True
             return
 
