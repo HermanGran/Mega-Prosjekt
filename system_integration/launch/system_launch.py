@@ -16,7 +16,15 @@ def generate_launch_description():
             default_value='30.0',
             description='Bilder per sekund fra kameraet'
         ),
-
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='static_tf_pub',
+            arguments=['0.0', '0.0', '-0.05'
+                       '0.0', '0.0', '0.0',
+                       'base_link', 'camera_frame'],
+            output='screen'
+        ),
         # Start task_manager_node
 #        Node(
 #            package='system_integration',
@@ -56,8 +64,8 @@ def generate_launch_description():
         # Start motion_planner_node
         Node(
             package='ur_motion_planning',
-            executable='test_node',
-            name='test_node',
+            executable='planner_node',
+            name='planner_node',
             output='screen'
         )#,
     ])
