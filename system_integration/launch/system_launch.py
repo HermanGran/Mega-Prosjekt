@@ -25,13 +25,14 @@ def generate_launch_description():
                        'base_link', 'camera_frame'],
             output='screen'
         ),
+
         # Start task_manager_node
-#        Node(
-#            package='system_integration',
-#            executable='task_manager_node',
-#            name='task_manager',
-#            output='screen'
-#        ),
+        Node(
+            package='system_integration',
+            executable='task_manager_node',
+            name='task_manager',
+            output='screen'
+        ),
 
         # Start camera_driver_node
         Node(

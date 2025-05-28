@@ -1,34 +1,41 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
-import threading
+from std_srvs.srv import Trigger
+import time
 
-class TaskManager(Node):
+class TaskManagerNode(Node):
     def __init__(self):
         super().__init__('task_manager_node')
 
-        # Publishes movement commands to the motion planner
-        self.command_pub = self.create_publisher(String, '/move_command', 10)
+        # Lag en serviceklient for /go_to_home
+        self.cli = self.create_client(Trigger, '/go_to_home')
 
-        # Start a background thread to read from terminal
-        threading.Thread(target=self.command_input_loop, daemon=True).start()
+        # Vent til tjenesten er tilgjengelig
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Venter på /go_to_home tjeneste...')
 
-    def command_input_loop(self):
-        while rclpy.ok():
-            cmd = input('home').strip()
-            if cmd:
-                msg = String()
-                msg.data = cmd
-                self.command_pub.publish(msg)
-                self.get_logger().info(f"Sent command: '{cmd}'")
+        # Kall tjenesten én gang ved oppstart
+        self.go_to_home()
+
+    def go_to_home(self):
+        req = Trigger.Request()
+        future = self.cli.call_async(req)
+
+        def callback(future):
+            if future.result() is not None:
+                if future.result().success:
+                    self.get_logger().info('Gikk til hjem-posisjon.')
+                else:
+                    self.get_logger().error(f"Feil: {future.result().message}")
+            else:
+                self.get_logger().error("Servicekallet feilet.")
+
+        future.add_done_callback(callback)
 
 def main(args=None):
     rclpy.init(args=args)
-    node = TaskManager()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
+    node = TaskManagerNode()
+    rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
 
