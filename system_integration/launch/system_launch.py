@@ -51,5 +51,13 @@ def generate_launch_description():
             executable='pose_estimator_node',
             name='pose_estimator_node',
             output='screen'
-        )
+        ),
+
+        # Start motion_planner_node
+        Node(
+            package='ur_motion_planning',
+            executable='motion_planner_node',
+            name='motion_planner_node',
+            output='screen'
+        )#,
     ])
