@@ -1,11 +1,14 @@
 import rclpy
+import numpy as np
 from rclpy.node import Node
 from geometry_msgs.msg import Point, PoseStamped
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker
 from tf2_ros import Buffer, TransformListener
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
+from tf2_geometry_msgs.tf2_geometry_msgs import do_transform_pose
 import time
+
 
 class PoseEstimator(Node):
     def __init__(self):
@@ -20,7 +23,7 @@ class PoseEstimator(Node):
         self.scale = 0.036 / 37
         self.img_width = 640
         self.img_height = 480
-        self.camera_height = 0.5
+        self.camera_height = 0.6
 
         # TF2 setup
         self.tf_buffer = Buffer()
@@ -65,12 +68,11 @@ class PoseEstimator(Node):
 
                 robot_x = tf_tool.transform.translation.x
                 robot_y = tf_tool.transform.translation.y
-                robot_z = tf_tool.transform.translation.z
 
                 # Regn ut kubens posisjon i base_link-koordinater ved å legge på TCP-posisjonen
-                cube_x = robot_x + transformed_pose.pose.position.x
-                cube_y = robot_y + transformed_pose.pose.position.y
-                cube_z = robot_z + transformed_pose.pose.position.z  # Eventuelt sett til ønsket høyde over bakken
+                cube_x = robot_x + transformed_pose.pose.position.y
+                cube_y = robot_y + transformed_pose.pose.position.x
+                cube_z = 0.1  # Eventuelt sett til ønsket høyde over bakken
 
                 self.get_logger().info(f"Kube posisjon i base_link: x={cube_x:.3f}, y={cube_y:.3f}, z={cube_z:.3f}")
 
