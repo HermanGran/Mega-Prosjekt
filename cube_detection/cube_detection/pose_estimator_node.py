@@ -48,11 +48,39 @@ class PoseEstimator(Node):
         pose_cam.pose.orientation.w = 1.0  # ingen rotasjon
 
         try:
+            # Transformér til base_link
             transformed_pose = self.tf_buffer.transform(
                 pose_cam,
                 "base_link",
                 timeout=rclpy.duration.Duration(seconds=0.5)
             )
+
+            # Hent robotens end-effektor-posisjon (tool0)
+            try:
+                tf_tool = self.tf_buffer.lookup_transform(
+                    "base_link",
+                    "tool0",  # End-effektor frame
+                    rclpy.time.Time(),
+                    timeout=rclpy.duration.Duration(seconds=0.5)
+                )
+
+                robot_x = tf_tool.transform.translation.x
+                robot_y = tf_tool.transform.translation.y
+                robot_z = tf_tool.transform.translation.z
+
+                cube_x = transformed_pose.pose.position.x
+                cube_y = transformed_pose.pose.position.y
+                cube_z = transformed_pose.pose.position.z
+
+                # Beregn relativ posisjon fra robotens TCP til kuben
+                dx = cube_x - robot_x
+                dy = cube_y - robot_y
+                dz = cube_z - robot_z
+
+                self.get_logger().info(f"Relativ posisjon fra TCP til kube: x={dx:.3f}, y={dy:.3f}, z={dz:.3f}")
+
+            except Exception as e:
+                self.get_logger().warn(f"Kunne ikke hente robotposisjon: {e}")
 
             # Publiser posen
             self.pose_publisher.publish(transformed_pose)
@@ -62,7 +90,7 @@ class PoseEstimator(Node):
             marker.header.frame_id = "base_link"
             marker.header.stamp = self.get_clock().now().to_msg()
             marker.ns = "cube"
-            marker.id = int(time.time() * 1000) % 100000  # unik ID
+            marker.id = int(time.time() * 1000) % 100000
             marker.type = Marker.CUBE
             marker.action = Marker.ADD
             marker.pose = transformed_pose.pose
@@ -76,7 +104,7 @@ class PoseEstimator(Node):
                 'blue': (0.0, 0.0, 1.0),
                 'yellow': (1.0, 1.0, 0.0),
             }
-            r, g, b = color_map.get(self.last_color, (1.0, 1.0, 1.0))  # fallback = hvit
+            r, g, b = color_map.get(self.last_color, (1.0, 1.0, 1.0))
             marker.color.r = r
             marker.color.g = g
             marker.color.b = b
@@ -86,6 +114,7 @@ class PoseEstimator(Node):
 
         except (LookupException, ConnectivityException, ExtrapolationException) as e:
             self.get_logger().warn(f"TF transform failed: {e}")
+
 
 def main(args=None):
     rclpy.init(args=args)
