@@ -55,7 +55,7 @@ class PoseEstimator(Node):
             ray_end_base = self.tf_buffer.transform(
                 ray_end,
                 "base_link",
-                timeout=rclpy.duration.Duration(seconds=0.5)
+                timeout=rclpy.duration.Duration(seconds=0.5))
 
             # Get camera position in base_link
             tf_camera = self.tf_buffer.lookup_transform(
@@ -77,12 +77,12 @@ class PoseEstimator(Node):
             # Calculate intersection with ground plane (z = 0)
             if abs(dir_z) > 0.001:  # Avoid division by zero
                 t = -cam_z / dir_z
-            cube_x = cam_x + t * dir_x
-            cube_y = cam_y + t * dir_y
-            cube_z = 0.0
+                cube_x = cam_x + t * dir_x
+                cube_y = cam_y + t * dir_y
+                cube_z = 0.1
             else:
-            self.get_logger().warn("Ray parallel to ground plane")
-            return
+                self.get_logger().warn("Ray parallel to ground plane")
+                return
 
             self.get_logger().info(f"Cube position: x={cube_x:.3f}, y={cube_y:.3f}")
 
