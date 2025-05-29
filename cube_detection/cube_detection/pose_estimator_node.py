@@ -75,7 +75,6 @@ class PoseEstimator(Node):
                 'red': (1.0, 0.0, 0.0),
                 'blue': (0.0, 0.0, 1.0),
                 'yellow': (1.0, 1.0, 0.0),
-                'green': (0.0, 1.0, 0.0)
             }
             r, g, b = color_map.get(self.last_color, (1.0, 1.0, 1.0))  # fallback = hvit
             marker.color.r = r

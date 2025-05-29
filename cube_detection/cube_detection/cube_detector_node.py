@@ -28,8 +28,8 @@ class CubeDetector(Node):
                 (np.array([0, 100, 100]), np.array([10, 255, 255])),
                 (np.array([160, 100, 100]), np.array([180, 255, 255]))
             ],
-            'blue': [(np.array([100, 150, 50]), np.array([140, 255, 255]))],
-            'yellow': [(np.array([20, 100, 100]), np.array([40, 255, 255]))]
+            'blue': [(np.array([90, 100, 50]), np.array([130, 255, 255]))],
+            'yellow': [(np.array([15, 50, 100]), np.array([40, 255, 255]))]
         }
 
     def enable_callback(self, msg):
