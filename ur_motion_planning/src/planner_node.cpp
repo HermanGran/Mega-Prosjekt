@@ -13,17 +13,18 @@ public:
     {
         move_group_.setPlanningTime(10.0);  // Increase from default 5s
         move_group_.setNumPlanningAttempts(10);  // Default is 1
-        move_group_.setMaxVelocityScalingFactor(0.5); 
+        move_group_.setMaxVelocityScalingFactor(0.3); 
 
         // Declaring parameters
         this->declare_parameter("home_pose.position.x", -0.24);
         this->declare_parameter("home_pose.position.y", 0.43);
         this->declare_parameter("home_pose.position.z", 0.6);
         this->declare_parameter("home_pose.orientation.x", 0.38);
-        this->declare_parameter("home_pose.orientation.y", 0.92);
+        this->declare_parameter("home_pose.orientation.y", 0.0);
         this->declare_parameter("home_pose.orientation.z", 0.0);
         this->declare_parameter("home_pose.orientation.w", 0.0);
 
+        
         // Creating Home Pose
         home_pose_.header.frame_id = "base_link";
         home_pose_.pose.position.x = this->get_parameter("home_pose.position.x").as_double();
