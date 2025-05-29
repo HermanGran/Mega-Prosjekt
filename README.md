@@ -1,10 +1,6 @@
 # ROS Mega Prosjekt
 
-
-[![Package nodes diagram simulated on ROS and Rviz | Download Scientific ...](https://tse1.mm.bing.net/th?id=OIP.fs4oCKt3UvUHo7-Q3t0URQHaGJ\&cb=iwp1\&pid=Api)](https://www.researchgate.net/figure/Package-nodes-diagram-simulated-on-ROS-and-Rviz_fig6_316945804)
-
-
-Dette prosjektet ble utviklet som del av AIS2105: Mekatronikk og Robotikk ved NTNU Ålesund. Systemet bruker ROS 2 og MoveIt for å styre en UR5-robotarm til å identifisere og peke på tre fargede kuber rekkefølgen rød, gul og blå.
+Dette prosjektet ble utviklet som del av AIS2105: Mekatronikk og Robotikk ved NTNU Ålesund. Systemet bruker ROS 2 og MoveIt for å styre en UR5-robotarm til å identifisere og peke på tre fargede kuber.
 
 ## Funksjonalitet
 
@@ -14,7 +10,7 @@ Systemet gjør dette ved oppstart:
 - Flytter seg for å ta oversiktsbilde over bordet
 - Detekterer røde, gule og blå kuber via bildebehandling
 - Estimerer posisjoner i 3D ved hjelp av tf2
-- Planlegger og utfører bevegelser til hver kube i rekkefølgen: rød → gul → blå
+- Planlegger og utfører bevegelser til hver kube i rekkefølgen: rød, gul og blå
 - Varsler hvis noen av kubene ikke blir funnet
 
 ## Pakker
@@ -50,8 +46,8 @@ Inneholder:
 
 - ROS 2 (Jazzy)
 - MoveIt
-- OpenCV
-- tf2
+- OpenCV via (`cv2`, `cv_bridge`)
+- tf2 (via `tf2_ros`, `tf2_geometry_msgs`)
 - Third_Party UR ROS driver (`ur_robot_driver`)
 
 ## Hvordan installere third_party repos
@@ -76,7 +72,8 @@ rosdep install --from-paths src --ignore-src -r -y
 ros2 launch system_integration system.launch.py
 ```
 
-#### Individuell testing av pakker
+
+### **Individuell testing av pakker**
 
 Start Kamera:
 
@@ -95,4 +92,14 @@ Start Plnalegger:
 
 ```bash
 ros2 run ur_motion_planning planner_node
+```
+
+## Simulering
+
+- **RViz 2**: Visualiserer robotens bevegelser, posisjon og koordinatsystemer i sanntid.
+- **MoveIt Planning Scene**: Simulerer planlagte bevegelser og sjekker for kollisjoner før de sendes til roboten.
+
+Simuleringen kan vises ved å kjøre:
+```bash
+
 ```
