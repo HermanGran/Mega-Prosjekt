@@ -8,11 +8,9 @@
 
 class MotionPlannerNode : public rclcpp::Node {
 public:
-    MotionPlannerNode() : Node("motion_planner_node"),
-        move_group_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator") 
-    {
-        move_group_.setPlanningTime(10.0);  // Increase from default 5s
-        move_group_.setNumPlanningAttempts(10);  // Default is 1
+    MotionPlannerNode() : Node("motion_planner_node"), move_group_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator") {
+        move_group_.setPlanningTime(10.0);
+        move_group_.setNumPlanningAttempts(5); 
         move_group_.setMaxVelocityScalingFactor(0.3); 
 
         // Declaring parameters
@@ -23,7 +21,6 @@ public:
         this->declare_parameter("home_pose.orientation.y", 0.0);
         this->declare_parameter("home_pose.orientation.z", 0.0);
         this->declare_parameter("home_pose.orientation.w", 0.0);
-
         
         // Creating Home Pose
         home_pose_.header.frame_id = "base_link";
@@ -35,14 +32,13 @@ public:
         home_pose_.pose.orientation.z = this->get_parameter("home_pose.orientation.z").as_double();
         home_pose_.pose.orientation.w = this->get_parameter("home_pose.orientation.w").as_double();
 
-        // Creating Subsribers
-        pose_subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-            "/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
-
         // Creating Publishers
         ready_publisher_ = create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
         cube_marker_ = create_publisher<geometry_msgs::msg::PoseStamped>("/cube_marker", 10);
         cube_pose_done_ = create_publisher<std_msgs::msg::Bool>("/cube_pose_done", 10);
+
+        // Creating Subsribers
+        pose_subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>("/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
 
         // Creating Service
         go_home_service_ = create_service<std_srvs::srv::Trigger>("/go_to_home", std::bind(&MotionPlannerNode::go_to_home_callback, this, std::placeholders::_1, std::placeholders::_2));
@@ -117,7 +113,11 @@ private:
             response->message = "Planning failed.";
         }
     
-        ready_publisher_->publish(ready_msg);  // Publish final state
+        ready_publisher_->publish(ready_msg);
+    }
+
+    void search_for_cubes() {
+        
     }
 
     // Member variables
