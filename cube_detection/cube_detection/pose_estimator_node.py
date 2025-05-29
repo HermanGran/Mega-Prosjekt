@@ -24,8 +24,10 @@ class PoseEstimator(Node):
         # Camera parameters (should be calibrated for your setup)
         self.img_width = 640
         self.img_height = 480
-        self.camera_height = 0.5  # Height of camera above ground (meters)
+        self.camera_height = 0.6  # Height of camera above ground (meters)
         self.focal_length = 500.0  # Approximate focal length in pixels
+        self.scale = 0.036 / 35
+        self.fixed_cube_height = 0.1
 
         # TF2 setup
         self.tf_buffer = Buffer()
@@ -80,14 +82,13 @@ class PoseEstimator(Node):
                 rclpy.time.Time(),
                 timeout=rclpy.duration.Duration(seconds=0.5))
 
-            offset_x = tf_camera_offset.transform.translation.x
-            offset_y = tf_camera_offset.transform.translation.y
+            offset_x = -tf_camera_offset.transform.translation.x
+            offset_y = -tf_camera_offset.transform.translation.y
             offset_z = tf_camera_offset.transform.translation.z
 
             # Korriger for kameraets offset fra tool0
             cube_x = transformed_pose.pose.position.x - offset_x
             cube_y = transformed_pose.pose.position.y - offset_y
-            cube_z = transformed_pose.pose.position.z - offset_z
             cube_z = self.fixed_cube_height  # Tving fast høyde
 
             # Resten av koden for publisering og visualisering...
