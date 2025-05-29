@@ -1,5 +1,59 @@
 # ROS Mega Prosjekt
 
+
+[![Package nodes diagram simulated on ROS and Rviz | Download Scientific ...](https://tse1.mm.bing.net/th?id=OIP.fs4oCKt3UvUHo7-Q3t0URQHaGJ\&cb=iwp1\&pid=Api)](https://www.researchgate.net/figure/Package-nodes-diagram-simulated-on-ROS-and-Rviz_fig6_316945804)
+
+
+Dette prosjektet ble utviklet som del av AIS2105: Mekatronikk og Robotikk ved NTNU Ålesund. Systemet bruker ROS 2 og MoveIt for å styre en UR5-robotarm til å identifisere og peke på tre fargede kuber rekkefølgen rød, gul og blå.
+
+## Funksjonalitet
+
+Systemet gjør dette ved oppstart:
+
+- Går til en definert hjem-posisjon
+- Flytter seg for å ta oversiktsbilde over bordet
+- Detekterer røde, gule og blå kuber via bildebehandling
+- Estimerer posisjoner i 3D ved hjelp av tf2
+- Planlegger og utfører bevegelser til hver kube i rekkefølgen: rød → gul → blå
+- Varsler hvis noen av kubene ikke blir funnet
+
+## Pakker
+
+### `camera_interface`
+
+Inneholder:
+
+- `camera_driver_node`: Leser bilder fra kamera og publiserer dem på `/camera/image_raw`
+- `camera_driver.launch.py`: Launch fil for å starte kamera
+
+### `cube_detection`
+  
+  Inneholder:
+
+- `cube_detector_node`: Detekterer kuber via HSV-fargefiltrering og publiserer senterpunkt og farge
+- `pose_estimator_node`: Konverterer 2D-punkt til 3D-posisjon via transformasjon med `tf2`
+- Estimerte posisjoner publiseres som `PoseStamped` på `/cube_pose`
+
+### `ur_motion_planning`
+
+  Inneholder:
+
+- `planner_node.cpp`: Tar imot posisjoner fra `/cube_pose` og bruker `MoveGroupInterface` fra MoveIt til å planlegge bevegelser
+
+### `system_integration`
+
+  Inneholder:
+  
+- `system.launch.py`: Starter hele systemet 
+
+## Avhengigheter
+
+- ROS 2 (Jazzy)
+- MoveIt
+- OpenCV
+- tf2
+- Third_Party UR ROS driver (`ur_robot_driver`)
+
 ## Hvordan installere third_party repos
 
 1. cd inn til SRC folder
@@ -14,76 +68,31 @@ rosdep install --from-paths src --ignore-src -r -y
 ```
 
 
+## Kjøring
 
+### Start hele systemet
 
+```bash
+ros2 launch system_integration system.launch.py
+```
 
+#### Individuell testing av pakker
 
-[![Package nodes diagram simulated on ROS and Rviz | Download Scientific ...](https://tse1.mm.bing.net/th?id=OIP.fs4oCKt3UvUHo7-Q3t0URQHaGJ\&cb=iwp1\&pid=Api)](https://www.researchgate.net/figure/Package-nodes-diagram-simulated-on-ROS-and-Rviz_fig6_316945804)
+Start Kamera:
 
-Based on the project description in the [mega-project.md](https://github.com/adamleon/ais2105/blob/main/project/mega-project.md) file, the task involves programming a UR robot to detect and point to colored cubes placed randomly on a table. The evaluation criteria emphasize the structure and implementation of ROS 2 nodes, camera pipeline robustness, robot movement precision, and configurability.
+```bash
+ros2 launch camera_interface camera_driver.launch.py
+```
 
-To address these requirements effectively, a modular ROS 2 architecture with well-defined packages and nodes is recommended. Here's a suggested breakdown:
+Start Kube-deteksjon:
 
----
+```bash
+ros2 run cube_detection cube_detector_node
+ros2 run cube_detection pose_estimator_node
+```
 
-### 📦 Recommended ROS 2 Packages and Nodes
+Start Plnalegger:
 
-1. **Camera Interface Package**
-
-   * **Node:** `camera_driver_node`
-
-     * Interfaces with the camera hardware and publishes raw image data.
-   * **Node:** `image_preprocessor_node`
-
-     * Performs image preprocessing tasks such as filtering and normalization.
-
-2. **Cube Detection Package**
-
-   * **Node:** `cube_detector_node`
-
-     * Processes images to detect colored cubes and publishes their positions.
-   * **Node:** `pose_estimator_node`
-
-     * Estimates the 3D poses of detected cubes relative to the robot's base frame.
-
-3. **Robot Control Package**
-
-   * **Node:** `motion_planner_node`
-
-     * Plans the robot's pointing trajectory based on cube positions.
-   * **Node:** `ur_robot_controller_node`
-
-     * Sends joint commands to the UR robot to execute the planned motions.
-
-4. **System Integration Package**
-
-   * **Node:** `task_manager_node`
-
-     * Coordinates the overall task flow: triggers image capture, processes detection results, and commands the robot accordingly.
-   * **Launch Files:**
-
-     * Define and manage the startup sequence of all nodes with appropriate parameters and configurations.
-
----
-
-### ⚙️ Configuration and Parameters
-
-* Utilize ROS 2 parameters and YAML configuration files to allow easy tuning of:
-
-  * Camera settings (e.g., exposure, resolution).
-  * Detection thresholds (e.g., color ranges for cube detection).
-  * Robot motion parameters (e.g., speed, acceleration).
-* Implement launch arguments to switch between different modes (e.g., simulation vs. real hardware).
-
----
-
-### 🧩 Additional Considerations
-
-* **Modularity:** Ensure each package has a single responsibility to enhance maintainability and scalability.
-* **Reusability:** Design nodes to be reusable for similar tasks or future projects.
-* **Testing:** Include unit tests and integration tests for critical components to ensure reliability.
-* **Documentation:** Provide clear documentation for each package, including usage instructions and parameter descriptions.
-
----
-
-By structuring the project into these packages and nodes, you align with ROS 2 best practices, facilitate easier debugging and testing, and meet the project's evaluation criteria effectively.
+```bash
+ros2 run ur_motion_planning planner_node
+```
