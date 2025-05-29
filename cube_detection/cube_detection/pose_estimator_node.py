@@ -94,7 +94,7 @@ class PoseEstimator(Node):
                 marker.id = int(time.time() * 1000) % 100000
                 marker.type = Marker.CUBE
                 marker.action = Marker.ADD
-                marker.pose = cube_pose_base.pose
+                marker.pose = cube_pose.pose
                 marker.scale.x = 0.04
                 marker.scale.y = 0.04
                 marker.scale.z = 0.04
