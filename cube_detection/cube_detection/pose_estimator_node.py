@@ -38,53 +38,59 @@ class PoseEstimator(Node):
         cx = point_msg.x
         cy = point_msg.y
 
-        # Convert to normalized image coordinates
-        x_normalized = (cx - self.img_width / 2) / self.focal_length
-        y_normalized = (self.img_height / 2 - cy) / self.focal_length
+        # Konverter til posisjon i kamera-frame
+        x_cam = (cx - self.img_width / 2) * self.scale
+        y_cam = (cy - self.img_height / 2) * self.scale
+        z_cam = self.fixed_cube_height  # Bruk fast høyde
 
-        # Create ray from camera to point (in camera frame)
-        ray_end = PointStamped()
-        ray_end.header.stamp = self.get_clock().now().to_msg()
-        ray_end.header.frame_id = "camera_frame"
-        ray_end.point.x = x_normalized
-        ray_end.point.y = y_normalized
-        ray_end.point.z = 1.0  # Unit depth
+        pose_cam = PoseStamped()
+        pose_cam.header.stamp = self.get_clock().now().to_msg()
+        pose_cam.header.frame_id = "camera_frame"
+        pose_cam.pose.position.x = x_cam
+        pose_cam.pose.position.y = y_cam
+        pose_cam.pose.position.z = z_cam
+        pose_cam.pose.orientation.w = 1.0
 
         try:
-            # Transform ray direction to base_link frame
-            ray_end_base = self.tf_buffer.transform(
-                ray_end,
+            # Transformér direkte til base_link
+            transformed_pose = self.tf_buffer.transform(
+                pose_cam,
                 "base_link",
                 timeout=rclpy.duration.Duration(seconds=0.5))
 
-            # Get camera position in base_link
-            tf_camera = self.tf_buffer.lookup_transform(
+            # Hent TCP-posisjon (camera_frame er montert på tool0)
+            tf_tool = self.tf_buffer.lookup_transform(
                 "base_link",
+                "tool0",  # TCP
+                rclpy.time.Time(),
+                timeout=rclpy.duration.Duration(seconds=0.5))
+
+            robot_x = tf_tool.transform.translation.x
+            robot_y = tf_tool.transform.translation.y
+            robot_z = tf_tool.transform.translation.z
+
+            # Beregn korrekt kube-posisjon
+            # Merk: transformed_pose er allerede i base_link, så vi må ikke addere robot_x/y direkte
+            # Men siden kameraet er på roboten, må vi justere for kameraets offset
+
+            # Finn offset mellom tool0 og camera_frame
+            tf_camera_offset = self.tf_buffer.lookup_transform(
+                "tool0",
                 "camera_frame",
                 rclpy.time.Time(),
                 timeout=rclpy.duration.Duration(seconds=0.5))
 
-            #Camera position
-            cam_x = tf_camera.transform.translation.x
-            cam_y = tf_camera.transform.translation.y
-            cam_z = tf_camera.transform.translation.z
+            offset_x = tf_camera_offset.transform.translation.x
+            offset_y = tf_camera_offset.transform.translation.y
+            offset_z = tf_camera_offset.transform.translation.z
 
-            # Ray direction vector
-            dir_x = ray_end_base.point.x - cam_x
-            dir_y = ray_end_base.point.y - cam_y
-            dir_z = ray_end_base.point.z - cam_z
+            # Korriger for kameraets offset fra tool0
+            cube_x = transformed_pose.pose.position.x - offset_x
+            cube_y = transformed_pose.pose.position.y - offset_y
+            cube_z = transformed_pose.pose.position.z - offset_z
+            cube_z = self.fixed_cube_height  # Tving fast høyde
 
-            # Calculate intersection with ground plane (z = 0)
-            if abs(dir_z) > 0.001:  # Avoid division by zero
-                t = -cam_z / dir_z
-                cube_x = cam_x + t * dir_x
-                cube_y = cam_y + t * dir_y
-                cube_z = 0.1
-            else:
-                self.get_logger().warn("Ray parallel to ground plane")
-                return
-
-            self.get_logger().info(f"Cube position: x={cube_x:.3f}, y={cube_y:.3f}")
+            # Resten av koden for publisering og visualisering...
 
             # Create PoseStamped in base_link
             cube_pose = PoseStamped()
