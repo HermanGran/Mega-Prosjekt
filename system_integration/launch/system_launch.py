@@ -84,7 +84,7 @@ def generate_launch_description():
         Node(
             package='ur_motion_planning',
             executable='planner_node',
-            name='planner_node',
+            name='motion_planner_node',
             output='screen',
             parameters=[config_path]  # Denne må være en liste med strenger eller dicts
         ),

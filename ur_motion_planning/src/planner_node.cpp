@@ -11,14 +11,18 @@ public:
     MotionPlannerNode() : Node("motion_planner_node"),
         move_group_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator") 
     {
+        move_group_.setPlanningTime(10.0);  // Increase from default 5s
+        move_group_.setNumPlanningAttempts(10);  // Default is 1
+        move_group_.setMaxVelocityScalingFactor(0.5); 
+
         // Declaring parameters
-        this->declare_parameter("home_pose.position.x", 0.0);
-        this->declare_parameter("home_pose.position.y", 0.0);
-        this->declare_parameter("home_pose.position.z", 0.0);
-        this->declare_parameter("home_pose.orientation.x", 0.0);
-        this->declare_parameter("home_pose.orientation.y", 0.0);
+        this->declare_parameter("home_pose.position.x", -0.24);
+        this->declare_parameter("home_pose.position.y", 0.43);
+        this->declare_parameter("home_pose.position.z", 0.6);
+        this->declare_parameter("home_pose.orientation.x", 0.38);
+        this->declare_parameter("home_pose.orientation.y", 0.92);
         this->declare_parameter("home_pose.orientation.z", 0.0);
-        this->declare_parameter("home_pose.orientation.w", 1.0);
+        this->declare_parameter("home_pose.orientation.w", 0.0);
 
         // Creating Home Pose
         home_pose_.header.frame_id = "base_link";
@@ -32,11 +36,11 @@ public:
 
         // Creating Subsribers
         pose_subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-            "/cube_pose_order", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
+            "/cube_pose", 10, std::bind(&MotionPlannerNode::pose_callback, this, std::placeholders::_1));
 
         // Creating Publishers
         ready_publisher_ = create_publisher<std_msgs::msg::Bool>("/enable_detection", 10);
-        cube_pose_translated_ = create_publisher<geometry_msgs::msg::PoseStamped>("/cube_pose_translated", 10);
+        cube_marker_ = create_publisher<geometry_msgs::msg::PoseStamped>("/cube_marker", 10);
         cube_pose_done_ = create_publisher<std_msgs::msg::Bool>("/cube_pose_done", 10);
 
         // Creating Service
@@ -66,7 +70,7 @@ private:
 
         geometry_msgs::msg::PoseStamped cube_pose_pub;
         cube_pose_pub = target_pose;
-        cube_pose_translated_->publish(cube_pose_pub);
+        cube_marker_->publish(cube_pose_pub);
 
         std_msgs::msg::Bool done_msg;
         done_msg.data = false;
@@ -76,7 +80,7 @@ private:
             moveit::core::MoveItErrorCode result = move_group_.execute(plan);
             if (result == moveit::core::MoveItErrorCode::SUCCESS) {
                 done_msg.data = true;
-                RCLCPP_INFO(get_logger(), "Moved to cobe!");
+                RCLCPP_INFO(get_logger(), "Moved to cube!");
             }
 
         } else {
@@ -88,39 +92,35 @@ private:
     // Service function to go to home pose, then send boolean ready to take picture
     void go_to_home_callback(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
 
-        RCLCPP_INFO(get_logger(), "Moving to home position...");
-        
+        RCLCPP_INFO(get_logger(), "Moving to home position... ");
+
+        home_pose_.header.frame_id = "base_link";
+        move_group_.setPoseTarget(home_pose_);
+
+        auto const [success, plan] = [this]{
+            moveit::planning_interface::MoveGroupInterface::Plan msg;
+            auto const ok = static_cast<bool>(move_group_.plan(msg));
+            return std::make_pair(ok, msg);
+        }();
+
         std_msgs::msg::Bool ready_msg;
         ready_msg.data = false;  // Default to "not ready"
 
-        if (move_group_.getCurrentPose().pose == home_pose_.pose) {
-            response->success = true;
-            response->message = "Moved to home position.";
-            ready_msg.data = true;  // Only set true after successful execution
-        } else {
-            move_group_.setPoseTarget(home_pose_);
-            
-            auto const [success, plan] = [this]{
-                moveit::planning_interface::MoveGroupInterface::Plan msg;
-                auto const ok = static_cast<bool>(move_group_.plan(msg));
-                return std::make_pair(ok, msg);
-            }();
-        
-            if (success) {
-                moveit::core::MoveItErrorCode result = move_group_.execute(plan);
-                if (result == moveit::core::MoveItErrorCode::SUCCESS) {
-                    response->success = true;
-                    response->message = "Moved to home position.";
-                    ready_msg.data = true;  // Only set true after successful execution
-                } else {
-                    response->success = false;
-                    response->message = "Execution failed.";
-                }
+        if (success) {
+            moveit::core::MoveItErrorCode result = move_group_.execute(plan);
+            if (result == moveit::core::MoveItErrorCode::SUCCESS) {
+                response->success = true;
+                response->message = "Moved to home position.";
+                ready_msg.data = true;  // Only set true after successful execution
             } else {
                 response->success = false;
-                response->message = "Planning failed.";
+                response->message = "Execution failed.";
             }
+        } else {
+            response->success = false;
+            response->message = "Planning failed.";
         }
+    
         ready_publisher_->publish(ready_msg);  // Publish final state
     }
 
@@ -131,7 +131,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_subscriber_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_publisher_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr cube_pose_done_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_pose_translated_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_marker_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr go_home_service_;
 };
 
