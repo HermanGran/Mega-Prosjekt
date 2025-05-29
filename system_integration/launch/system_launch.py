@@ -1,35 +1,22 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration
+from ament_index_python.packages import get_package_share_directory
 import os
-from launch.actions import TimerAction
 
 def generate_launch_description():
-    config_path = os.path.join(
-        os.getenv('HOME'), 'mega_ws/src/ur_motion_planning/config/poses.yaml'
-    )
-    camera_node = Node(
-        package='camera_interface',
-        executable='camera_driver_node',
-        name='camera_driver_node',
-        output='screen',
-        parameters=[{
-            'camera_index': LaunchConfiguration('camera_index'),
-            'fps': LaunchConfiguration('fps')
-        }]
+    # Sjekk at RViz-konfigurasjonen eksisterer
+    rviz_config_path = os.path.join(
+        get_package_share_directory('ur_moveit_config'),
+        'rviz',
+        'ur_moveit.rviz'  # Endre filnavn om nødvendig
     )
 
-    task_manager_node_delayed = TimerAction(
-        period=5.0,  # Vent 5 sekunder før task_manager starter
-        actions=[
-            Node(
-                package='system_integration',
-                executable='task_manager_node',
-                name='task_manager',
-                output='screen'
-            )
-        ]
+    # Konfigurasjonsfil for motion planner
+    config_path = os.path.join(
+        os.getenv('HOME'),
+        'mega_ws/src/ur_motion_planning/config/poses.yaml'
     )
 
     return LaunchDescription([
@@ -44,6 +31,17 @@ def generate_launch_description():
             default_value='30.0',
             description='Bilder per sekund fra kameraet'
         ),
+
+        # Start RViz med MoveIt-konfigurasjon
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d', rviz_config_path],
+            output='screen'
+        ),
+
+        # Static transform fra base_link til kamera_frame
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
@@ -51,14 +49,6 @@ def generate_launch_description():
             arguments=['0.0', '0.0', '-0.05',
                        '0.0', '0.0', '0.0',
                        'base_link', 'camera_frame'],
-            output='screen'
-        ),
-
-        # Start task_manager_node
-        Node(
-            package='system_integration',
-            executable='task_manager_node',
-            name='task_manager',
             output='screen'
         ),
 
@@ -96,6 +86,19 @@ def generate_launch_description():
             executable='planner_node',
             name='planner_node',
             output='screen',
-            parameters=[config_path]
-        )#,
+            parameters=[config_path]  # Denne må være en liste med strenger eller dicts
+        ),
+
+        # Delay-start task_manager_node for å vente på andre noder
+        TimerAction(
+            period=5.0,
+            actions=[
+                Node(
+                    package='system_integration',
+                    executable='task_manager_node',
+                    name='task_manager',
+                    output='screen'
+                )
+            ]
+        ),
     ])
