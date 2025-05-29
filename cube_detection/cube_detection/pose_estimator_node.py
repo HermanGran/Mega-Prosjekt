@@ -93,7 +93,13 @@ class PoseEstimator(Node):
                 marker.header.frame_id = "base_link"
                 marker.header.stamp = self.get_clock().now().to_msg()
                 marker.ns = "cube"
-                marker.id = int(time.time() * 1000) % 100000
+                # Få ID fra farge
+                color_id_map = {
+                    'red': 0,
+                    'blue': 1,
+                    'yellow': 2,
+                }
+                marker.id = color_id_map.get(self.last_color, 99)  # 99 = default hvis ukjent farge
                 marker.type = Marker.CUBE
                 marker.action = Marker.ADD
                 marker.pose = cube_pose.pose
