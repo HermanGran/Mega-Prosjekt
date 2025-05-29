@@ -123,10 +123,15 @@ private:
     moveit::planning_interface::MoveGroupInterface move_group_;
     geometry_msgs::msg::PoseStamped home_pose_;
     
+    // Creating Subscriber
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_subscriber_;
+
+    // Creating Publihser
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_marker_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_publisher_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr cube_pose_done_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr cube_marker_;
+
+    // Creating Service for calling Home Pose
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr go_home_service_;
 };
 
@@ -134,7 +139,7 @@ int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<MotionPlannerNode>();
     
-    // Use multi-threaded executor that I got from DeepSeek
+    // Using multi-threaded executor, got this tips from DeepSeek
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     executor.spin();

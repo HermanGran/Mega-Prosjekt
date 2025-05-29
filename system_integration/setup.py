@@ -15,7 +15,8 @@ setup(
         # Installer launch-filer riktig
         (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
         (os.path.join('share', package_name), ['package.xml']),
-        ('share/' + package_name + '/config', ['config/rviz_config.rviz'])
+        ('share/' + package_name + '/config', ['config/rviz_config.rviz']),
+        ('share/' + package_name + '/config', ['config/poses.yaml']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

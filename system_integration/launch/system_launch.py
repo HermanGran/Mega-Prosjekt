@@ -15,9 +15,12 @@ def generate_launch_description():
 
     # Konfigurasjonsfil for motion planner
     config_path = os.path.join(
-        os.getenv('HOME'),
-        'mega_ws/src/ur_motion_planning/config/poses.yaml'
+        get_package_share_directory('system_integration'),
+        'config',
+        'poses.yaml'
     )
+
+    
 
     return LaunchDescription([
         # Argumenter for kamera
