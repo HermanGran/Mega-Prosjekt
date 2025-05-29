@@ -1,11 +1,14 @@
 import rclpy
+import numpy as np
 from rclpy.node import Node
-from geometry_msgs.msg import Point, PoseStamped
+from geometry_msgs.msg import Point, PoseStamped, PointStamped
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker
 from tf2_ros import Buffer, TransformListener
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
+from tf2_geometry_msgs import do_transform_point
 import time
+
 
 class PoseEstimator(Node):
     def __init__(self):
@@ -17,10 +20,12 @@ class PoseEstimator(Node):
         self.marker_pub = self.create_publisher(Marker, '/cube_markers', 10)
 
         self.last_color = "unknown"
-        self.scale = 0.036 / 37
+
+        # Camera parameters (should be calibrated for your setup)
         self.img_width = 640
         self.img_height = 480
-        self.camera_height = 0.5
+        self.camera_height = 0.5  # Height of camera above ground (meters)
+        self.focal_length = 500.0  # Approximate focal length in pixels
 
         # TF2 setup
         self.tf_buffer = Buffer()
@@ -33,91 +38,95 @@ class PoseEstimator(Node):
         cx = point_msg.x
         cy = point_msg.y
 
-        # Konverter til posisjon i kamera-frame
-        x_cam = (cx - self.img_width / 2) * self.scale
-        y_cam = (cy - self.img_height / 2) * self.scale
-        z_cam = 0.0  # Kuben på bakken
+        # Convert to normalized image coordinates
+        x_normalized = (cx - self.img_width / 2) / self.focal_length
+        y_normalized = (self.img_height / 2 - cy) / self.focal_length
 
-        pose_cam = PoseStamped()
-        pose_cam.header.stamp = self.get_clock().now().to_msg()
-        pose_cam.header.frame_id = "camera_frame"
-        pose_cam.pose.position.x = x_cam
-        pose_cam.pose.position.y = y_cam
-        pose_cam.pose.position.z = z_cam
-        pose_cam.pose.orientation.w = 1.0  # Ingen rotasjon
+        # Create ray from camera to point (in camera frame)
+        ray_end = PointStamped()
+        ray_end.header.stamp = self.get_clock().now().to_msg()
+        ray_end.header.frame_id = "camera_frame"
+        ray_end.point.x = x_normalized
+        ray_end.point.y = y_normalized
+        ray_end.point.z = 1.0  # Unit depth
 
         try:
-            # Transformér posisjon fra camera_frame til base_link
-            transformed_pose = self.tf_buffer.transform(
-                pose_cam,
+            # Transform ray direction to base_link frame
+            ray_end_base = self.tf_buffer.transform(
+                ray_end,
                 "base_link",
                 timeout=rclpy.duration.Duration(seconds=0.5)
-            )
 
-            # Hent TCP-posisjon i base_link
-            try:
-                tf_tool = self.tf_buffer.lookup_transform(
-                    "base_link",
-                    "tool0",  # End-effektor (TCP)
-                    rclpy.time.Time(),
-                    timeout=rclpy.duration.Duration(seconds=0.5)
-                )
+            # Get camera position in base_link
+            tf_camera = self.tf_buffer.lookup_transform(
+                "base_link",
+                "camera_frame",
+                rclpy.time.Time(),
+                timeout=rclpy.duration.Duration(seconds=0.5))
 
-                robot_x = tf_tool.transform.translation.x
-                robot_y = tf_tool.transform.translation.y
-                robot_z = tf_tool.transform.translation.z
+            #Camera position
+            cam_x = tf_camera.transform.translation.x
+            cam_y = tf_camera.transform.translation.y
+            cam_z = tf_camera.transform.translation.z
 
-                # Regn ut kubens posisjon i base_link-koordinater ved å legge på TCP-posisjonen
-                cube_x = robot_x + transformed_pose.pose.position.x
-                cube_y = robot_y + transformed_pose.pose.position.y
-                cube_z = robot_z + transformed_pose.pose.position.z  # Eventuelt sett til ønsket høyde over bakken
+            # Ray direction vector
+            dir_x = ray_end_base.point.x - cam_x
+            dir_y = ray_end_base.point.y - cam_y
+            dir_z = ray_end_base.point.z - cam_z
 
-                self.get_logger().info(f"Kube posisjon i base_link: x={cube_x:.3f}, y={cube_y:.3f}, z={cube_z:.3f}")
+            # Calculate intersection with ground plane (z = 0)
+            if abs(dir_z) > 0.001:  # Avoid division by zero
+                t = -cam_z / dir_z
+            cube_x = cam_x + t * dir_x
+            cube_y = cam_y + t * dir_y
+            cube_z = 0.0
+            else:
+            self.get_logger().warn("Ray parallel to ground plane")
+            return
 
-                # Lag en ny PoseStamped i base_link med kubens posisjon
-                cube_pose = PoseStamped()
-                cube_pose.header.stamp = self.get_clock().now().to_msg()
-                cube_pose.header.frame_id = "base_link"
-                cube_pose.pose.position.x = cube_x
-                cube_pose.pose.position.y = cube_y
-                cube_pose.pose.position.z = cube_z
-                cube_pose.pose.orientation.w = 1.0  # Ingen rotasjon, sett eventuelt riktig orientering
+            self.get_logger().info(f"Cube position: x={cube_x:.3f}, y={cube_y:.3f}")
 
-                # Publiser kubens posisjon i base_link
-                self.pose_publisher.publish(cube_pose)
+            # Create PoseStamped in base_link
+            cube_pose = PoseStamped()
+            cube_pose.header.stamp = self.get_clock().now().to_msg()
+            cube_pose.header.frame_id = "base_link"
+            cube_pose.pose.position.x = cube_x
+            cube_pose.pose.position.y = cube_y
+            cube_pose.pose.position.z = cube_z
+            cube_pose.pose.orientation.w = 1.0
 
-                # Lag marker for RViz med kubens posisjon i base_link
-                marker = Marker()
-                marker.header.frame_id = "base_link"
-                marker.header.stamp = self.get_clock().now().to_msg()
-                marker.ns = "cube"
-                marker.id = int(time.time() * 1000) % 100000
-                marker.type = Marker.CUBE
-                marker.action = Marker.ADD
-                marker.pose = cube_pose.pose
-                marker.scale.x = 0.04
-                marker.scale.y = 0.04
-                marker.scale.z = 0.04
+            # Publish pose
+            self.pose_publisher.publish(cube_pose)
 
-                # Sett farge basert på sist registrerte farge
-                color_map = {
-                    'red': (1.0, 0.0, 0.0),
-                    'blue': (0.0, 0.0, 1.0),
-                    'yellow': (1.0, 1.0, 0.0),
-                }
-                r, g, b = color_map.get(self.last_color, (1.0, 1.0, 1.0))
-                marker.color.r = r
-                marker.color.g = g
-                marker.color.b = b
-                marker.color.a = 1.0
+            # Create marker for RViz
+            marker = Marker()
+            marker.header.frame_id = "base_link"
+            marker.header.stamp = self.get_clock().now().to_msg()
+            marker.ns = "cube"
+            marker.id = int(time.time() * 1000) % 100000
+            marker.type = Marker.CUBE
+            marker.action = Marker.ADD
+            marker.pose = cube_pose.pose
+            marker.scale.x = 0.04
+            marker.scale.y = 0.04
+            marker.scale.z = 0.04
 
-                self.marker_pub.publish(marker)
+            # Set color based on detected color
+            color_map = {
+                'red': (1.0, 0.0, 0.0),
+                'blue': (0.0, 0.0, 1.0),
+                'yellow': (1.0, 1.0, 0.0),
+            }
+            r, g, b = color_map.get(self.last_color, (1.0, 1.0, 1.0))
+            marker.color.r = r
+            marker.color.g = g
+            marker.color.b = b
+            marker.color.a = 1.0
 
-            except Exception as e:
-                self.get_logger().warn(f"Kunne ikke hente robotposisjon (tool0): {e}")
+            self.marker_pub.publish(marker)
 
         except (LookupException, ConnectivityException, ExtrapolationException) as e:
-            self.get_logger().warn(f"TF transform feilet: {e}")
+            self.get_logger().warn(f"TF transform failed: {e}")
 
 
 def main(args=None):
@@ -126,6 +135,7 @@ def main(args=None):
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
