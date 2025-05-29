@@ -40,7 +40,8 @@ Inneholder:
 
   Inneholder:
   
-- `system.launch.py`: Starter hele systemet 
+- `system.launch.py`: Starter hele systemet
+- Starter en digital tvilling av systemet (robot og kuber) 
 
 ## Avhengigheter
 
