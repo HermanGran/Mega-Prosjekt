@@ -54,12 +54,7 @@ private:
         RCLCPP_INFO(get_logger(), "Planning to target pose...");
         
         geometry_msgs::msg::PoseStamped target_pose = *msg;
-        target_pose.header.frame_id = "base_link";
-        target_pose.pose.position.x = home_pose_.pose.position.x - msg->pose.position.x;
-        target_pose.pose.position.y = home_pose_.pose.position.y - msg->pose.position.y;
-        target_pose.pose.position.z = 0.15;
         target_pose.pose.orientation = home_pose_.pose.orientation;
-
         move_group_.setPoseTarget(target_pose);
 
         auto const [success, plan] = [this]{
