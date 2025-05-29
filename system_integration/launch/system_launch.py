@@ -8,9 +8,9 @@ import os
 def generate_launch_description():
     # Sjekk at RViz-konfigurasjonen eksisterer
     rviz_config_path = os.path.join(
-        get_package_share_directory('ur_moveit_config'),
-        'rviz',
-        'ur_moveit.rviz'  # Endre filnavn om nødvendig
+        get_package_share_directory('system_integration'),
+        'config',
+        'rviz_config.rviz'
     )
 
     # Konfigurasjonsfil for motion planner
