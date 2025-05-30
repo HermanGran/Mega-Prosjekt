@@ -98,8 +98,3 @@ ros2 run ur_motion_planning planner_node
 
 - **RViz 2**: Visualiserer robotens bevegelser, posisjon og koordinatsystemer i sanntid.
 - **MoveIt Planning Scene**: Simulerer planlagte bevegelser og sjekker for kollisjoner før de sendes til roboten.
-
-Simuleringen kan vises ved å kjøre:
-```bash
-
-```
