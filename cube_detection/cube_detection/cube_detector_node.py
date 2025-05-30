@@ -17,11 +17,14 @@ class CubeDetector(Node):
         self.debug_pub = self.create_publisher(Image, '/debug_image', 10)
         self.enable_sub = self.create_subscription(Bool, '/enable_detection', self.enable_callback, 10)
         self.missing_pub = self.create_publisher(String, '/qube_missing', 10)
+        self.search_pub = self.create_publisher(Bool, '/request_search', 10)
+        self.check_completion_pub = self.create_publisher(Bool, '/check_completion', 10)
 
         self.bridge = CvBridge()
         self.enabled = False
-        self.detection_order = ['red', 'yellow', 'blue' ]
+        self.detection_order = ['red', 'yellow', 'blue']
         self.current_index = 0
+        self.found_cubes = {'red': None, 'yellow': None, 'blue': None}
 
         self.color_ranges = {
             'red': [
@@ -34,8 +37,9 @@ class CubeDetector(Node):
 
     def enable_callback(self, msg):
         if msg.data:
-            self.current_index = 0  # Start på nytt
+            self.current_index = 0
             self.enabled = True
+            self.found_cubes = {'red': None, 'yellow': None, 'blue': None}
             self.get_logger().info("Detection sequence started")
 
     def image_callback(self, image_msg):
@@ -46,8 +50,15 @@ class CubeDetector(Node):
         hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
 
         current_color = self.detection_order[self.current_index]
-        ranges = self.color_ranges[current_color]
+        
+        # Skip if we already found this color
+        if self.found_cubes[current_color] is not None:
+            self.current_index += 1
+            if self.current_index >= len(self.detection_order):
+                self.finish_detection()
+            return
 
+        ranges = self.color_ranges[current_color]
         mask_total = None
         for lower, upper in ranges:
             mask = cv2.inRange(hsv, lower, upper)
@@ -76,24 +87,33 @@ class CubeDetector(Node):
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
                     self.get_logger().info(f"{current_color} cube detected at ({cx}, {cy})")
+                    self.found_cubes[current_color] = (cx, cy)
                     found = True
-                    break  # Bare detekter én kloss per bilde
+                    break
 
         if not found:
             missing_msg = String()
-            missing_msg.data = f"{current_color} not found"
+            missing_msg.data = current_color
             self.missing_pub.publish(missing_msg)
             self.get_logger().warn(f"{current_color} cube not found")
 
-        # Gå videre til neste farge
         self.current_index += 1
         if self.current_index >= len(self.detection_order):
             self.enabled = False
             self.get_logger().info("Finished detection sequence")
+            self.finish_detection()
 
-        # Publiser debug-bilde
         debug_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
         self.debug_pub.publish(debug_msg)
+
+    def finish_detection(self):
+        self.enabled = False
+        # Only check completion if we actually looked for all cubes
+        if self.current_index >= len(self.detection_order):
+            check_completion_msg = Bool()
+            check_completion_msg.data = True
+            self.check_completion_pub.publish(check_completion_msg)
+        
 
 
 def main(args=None):
